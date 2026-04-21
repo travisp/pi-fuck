@@ -3,8 +3,17 @@
   "version": "0.1.0",
   "description": "Recover the last user prompt in pi after you realize you messed up.",
   "type": "module",
+  "license": "MIT",
   "keywords": ["pi-package"],
-  "files": ["src", "README.md"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/travisp/pi-fuck.git"
+  },
+  "homepage": "https://github.com/travisp/pi-fuck#readme",
+  "bugs": {
+    "url": "https://github.com/travisp/pi-fuck/issues"
+  },
+  "files": ["src", "README.md", "LICENSE"],
   "pi": {
     "extensions": ["./src/pi-fuck.ts"]
   },

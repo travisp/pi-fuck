@@ -1,12 +1,24 @@
 # pi-fuck
 
-A small pi extension for the moment you realize you messed up.
+A small [pi](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent) extension for the moment you realize you messed up.
 
 `/fuck` aborts the current run if needed, rewinds to before the most recent user prompt on the active branch, and restores that prompt into the editor so you can fix it and resubmit.
 
 ## Install
 
-Local package install:
+Install from GitHub:
+
+```bash
+pi install git:github.com/travisp/pi-fuck
+```
+
+Project-local install:
+
+```bash
+pi install -l git:github.com/travisp/pi-fuck
+```
+
+Local development install:
 
 ```bash
 pi install /absolute/path/to/pi-fuck
@@ -37,5 +49,13 @@ What it does:
 
 - It works on the **active branch only**
 - It does **not** undo file or external side effects
-- It does not work when there are queued messages
-- It does not work when compaction is running
+- It does **not** work when queued messages exist
+- It does **not** work when compaction is running
+
+**IT DOES NOT UNDO FILE SYSTEM OR OTHER EXTERNAL SIDE EFFECTS**
+
+## License
+
+MIT
+
+
