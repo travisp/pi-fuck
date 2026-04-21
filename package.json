@@ -1,0 +1,14 @@
+{
+  "name": "pi-fuck",
+  "version": "0.1.0",
+  "description": "Recover the last user prompt in pi after you realize you messed up.",
+  "type": "module",
+  "keywords": ["pi-package"],
+  "files": ["src", "README.md"],
+  "pi": {
+    "extensions": ["./src/pi-fuck.ts"]
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*"
+  }
+}
