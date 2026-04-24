@@ -58,11 +58,8 @@ function collectSubtreeIds(entries: SessionEntry[], rootId: string): Set<string>
 	return subtreeIds;
 }
 
-function rewriteEntriesForFuckhard(
-	entries: SessionEntry[],
-	lastUserMessage: UserMessageEntry,
-): SessionEntry[] {
-	const removedIds = collectSubtreeIds(entries, lastUserMessage.id);
+function removeEntrySubtree(entries: SessionEntry[], rootId: string): SessionEntry[] {
+	const removedIds = collectSubtreeIds(entries, rootId);
 	return entries.filter((entry) => {
 		if (removedIds.has(entry.id)) {
 			return false;
@@ -321,8 +318,7 @@ export default function piFuck(pi: ExtensionAPI) {
 				return;
 			}
 
-			const branch = ctx.sessionManager.getBranch();
-			const lastUserMessage = getLastUserMessage(branch);
+			const lastUserMessage = getLastUserMessage(ctx.sessionManager.getBranch());
 			if (!lastUserMessage) {
 				ctx.ui.notify("Nothing to remove on this branch.", "info");
 				return;
@@ -337,28 +333,22 @@ export default function piFuck(pi: ExtensionAPI) {
 
 			clearFuckhardActivation();
 
-			const editorText = ctx.ui.getEditorText();
-			const restoredText = editorText.trim() ? editorText : extractUserMessageText(lastUserMessage);
-			const rewindTargetId = lastUserMessage.parentId;
-			const rewrittenEntries = rewriteEntriesForFuckhard(ctx.sessionManager.getEntries(), lastUserMessage);
+			// Match /fuck's recovery path first so Pi restores the prompt into the editor.
+			// After that, rewrite the session file to delete the recovered prompt's subtree.
+			if ((await ctx.navigateTree(lastUserMessage.id)).cancelled) {
+				ctx.ui.notify("Recovery cancelled.", "info");
+				return;
+			}
+
+			const rewrittenEntries = removeEntrySubtree(ctx.sessionManager.getEntries(), lastUserMessage.id);
 
 			rewriteSessionInPlace(sessionFile, sessionHeader, rewrittenEntries);
 			await ctx.switchSession(sessionFile, {
 				withSession: async (replacementCtx) => {
-					// The slash-command submission flow can still clear the editor after the
-					// replacement session is ready, so restore the prompt on the next tick.
-					setTimeout(() => {
-						void (async () => {
-							if (rewindTargetId) {
-								await replacementCtx.navigateTree(rewindTargetId);
-							}
-							replacementCtx.ui.setEditorText(restoredText);
-							replacementCtx.ui.notify(
-								"fuckhard: navigated back to last prompt and dropped messages from session",
-								"info",
-							);
-						})();
-					}, 0);
+					replacementCtx.ui.notify(
+						"fuckhard: navigated back to last prompt and dropped messages from session",
+						"info",
+					);
 				},
 			});
 		},
