@@ -57,19 +57,15 @@ What `/fuck` does:
 
 What `/fuck typo` does:
 
-1. Runs the same recovery as `/fuck`
-2. Asks the current model for a conservative typo-only correction
-3. Shows the suggestion and asks whether to replace the restored prompt
-4. Leaves the original restored prompt alone if you decline or no obvious typo is found
+Runs the same recovery as `/fuck`, but then checks for typos:
+- checks for /command typos directly
+- checks for typos by asking the current model
+
+If found, it shows the suggestion and asks if the user wants to use the suggestion instead
 
 What `/fuckhard` does:
 
-1. Only runs immediately during or after a real user prompt has been sent
-2. Aborts the current agent run if one is active
-3. Finds the most recent real user message on the active branch
-4. Destructively removes that prompt and its descendant subtree from the current session file
-5. Reloads the same session
-6. Restores the prompt into the editor
+Runs the same recovery as `/fuck`, but then destructively removes that prompt and its descendant subtree from the current session file
 
 After `/fuckhard` succeeds, or after tree navigation, it becomes unavailable until another real user prompt is sent. It is intended to only be used once to remove a clear mistake, not as general session history editing.
 

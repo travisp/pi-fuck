@@ -83,6 +83,130 @@ function rewriteSessionInPlace(sessionFile: string, header: SessionHeader, entri
 	renameSync(tempFile, sessionFile);
 }
 
+// pi.getCommands() returns extension, prompt-template, and skill commands, but not
+// built-in interactive commands. Keep this small list in sync with pi's built-ins.
+const BUILTIN_SLASH_COMMANDS = [
+	"settings",
+	"model",
+	"scoped-models",
+	"export",
+	"import",
+	"share",
+	"copy",
+	"name",
+	"session",
+	"changelog",
+	"hotkeys",
+	"fork",
+	"clone",
+	"tree",
+	"login",
+	"logout",
+	"new",
+	"compact",
+	"resume",
+	"reload",
+	"quit",
+];
+
+function getSlashCommandNames(pi: ExtensionAPI): string[] {
+	return [...new Set([...BUILTIN_SLASH_COMMANDS, ...pi.getCommands().map((command) => command.name)])];
+}
+
+function parseSlashCommandPrompt(prompt: string): { commandName: string; rest: string } | undefined {
+	const match = /^\/(\S+)([\s\S]*)$/.exec(prompt);
+	if (!match) {
+		return undefined;
+	}
+
+	const [, commandName, rest] = match;
+	return { commandName, rest };
+}
+
+function levenshteinDistance(a: string, b: string): number {
+	let previousRow = Array.from({ length: b.length + 1 }, (_, index) => index);
+
+	for (let i = 0; i < a.length; i++) {
+		const currentRow = [i + 1];
+		for (let j = 0; j < b.length; j++) {
+			currentRow.push(
+				Math.min(
+					currentRow[j] + 1,
+					previousRow[j + 1] + 1,
+					previousRow[j] + (a[i] === b[j] ? 0 : 1),
+				),
+			);
+		}
+		previousRow = currentRow;
+	}
+
+	return previousRow[b.length];
+}
+
+const MAX_SLASH_COMMAND_TYPO_DISTANCE = 2;
+
+function findClosestSlashCommand(commandName: string, commandNames: string[]): string | undefined {
+	if (commandNames.includes(commandName)) {
+		return undefined;
+	}
+
+	let closestCommand: string | undefined;
+	let closestDistance = Number.POSITIVE_INFINITY;
+
+	for (const candidate of commandNames) {
+		const distance = levenshteinDistance(commandName, candidate);
+		if (distance < closestDistance) {
+			closestCommand = candidate;
+			closestDistance = distance;
+		}
+	}
+
+	if (!closestCommand || closestDistance > MAX_SLASH_COMMAND_TYPO_DISTANCE) {
+		return undefined;
+	}
+
+	return closestCommand;
+}
+
+async function offerSlashCommandTypoFix(
+	originalPrompt: string,
+	pi: ExtensionAPI,
+	ctx: ExtensionCommandContext,
+): Promise<boolean> {
+	const parsed = parseSlashCommandPrompt(originalPrompt);
+	if (!parsed) {
+		return false;
+	}
+
+	const closestCommand = findClosestSlashCommand(parsed.commandName, getSlashCommandNames(pi));
+	if (!closestCommand) {
+		return false;
+	}
+
+	const suggestion = `/${closestCommand}${parsed.rest}`;
+	const useSuggestion = await ctx.ui.confirm(
+		"Possible command typo detected:",
+		[
+			"Original:",
+			originalPrompt,
+			"",
+			"Suggested:",
+			suggestion,
+			"",
+			"Choose Yes to replace the restored prompt, or No to keep the original.",
+		].join("\n"),
+	);
+
+	if (useSuggestion) {
+		ctx.ui.setEditorText(suggestion);
+		ctx.ui.notify(`fuck typo: changed /${parsed.commandName} to /${closestCommand}`, "info");
+	} else {
+		ctx.ui.notify("fuck typo: kept original prompt", "info");
+	}
+
+	return true;
+}
+
 const TYPO_FIX_SYSTEM_PROMPT = [
 	"You are correcting a user prompt that was accidentally sent to a coding agent.",
 	"Correct only obvious spelling typos, accidental duplicated words, and minor punctuation or grammar mistakes.",
@@ -165,7 +289,11 @@ async function suggestTypoFix(originalPrompt: string, ctx: ExtensionCommandConte
 	return undefined;
 }
 
-async function offerTypoFix(originalPrompt: string, ctx: ExtensionCommandContext): Promise<void> {
+async function offerTypoFix(originalPrompt: string, pi: ExtensionAPI, ctx: ExtensionCommandContext): Promise<void> {
+	if (await offerSlashCommandTypoFix(originalPrompt, pi, ctx)) {
+		return;
+	}
+
 	ctx.ui.setStatus("pi-fuck", "Checking prompt for typos...");
 	ctx.ui.setWidget("pi-fuck-typo", ["pi-fuck: checking restored prompt for typos..."]);
 	try {
@@ -293,7 +421,7 @@ export default function piFuck(pi: ExtensionAPI) {
 			ctx.ui.notify("fuck: navigated back to last prompt", "info");
 
 			if (mode === "typo") {
-				await offerTypoFix(originalPrompt, ctx);
+				await offerTypoFix(originalPrompt, pi, ctx);
 			}
 		},
 	});
