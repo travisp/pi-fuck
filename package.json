@@ -17,6 +17,9 @@
   "pi": {
     "extensions": ["./src/pi-fuck.ts"]
   },
+  "dependencies": {
+    "@mariozechner/pi-ai": "*"
+  },
   "peerDependencies": {
     "@mariozechner/pi-coding-agent": "*"
   }

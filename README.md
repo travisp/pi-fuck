@@ -4,6 +4,8 @@ A small [pi](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent
 
 `/fuck` aborts the current run if needed, rewinds to before the most recent user prompt on the active branch, and restores that prompt into the editor so you can fix it and resubmit.
 
+`/fuck typo` does the same recovery, then suggests a conservative typo-only correction and lets you choose whether to use it.
+
 `/fuckhard` destructively rewrites the current session file to remove the most recent user prompt and everything below it, then reloads that same session and restores the prompt into the editor.
 
 _Inspired by the great [thefuck](https://github.com/nvbn/thefuck)._
@@ -40,6 +42,7 @@ Inside pi:
 
 ```text
 /fuck
+/fuck typo
 /fuckhard
 ```
 
@@ -49,6 +52,13 @@ What `/fuck` does:
 2. Finds the most recent real user message on the active branch
 3. Rewinds to just before that prompt
 4. Restores the prompt into the editor
+
+What `/fuck typo` does:
+
+1. Runs the same recovery as `/fuck`
+2. Asks the current model for a conservative typo-only correction
+3. Shows the suggestion and asks whether to replace the restored prompt
+4. Leaves the original restored prompt alone if you decline or no obvious typo is found
 
 What `/fuckhard` does:
 
@@ -67,6 +77,7 @@ After `/fuckhard` succeeds, or after tree navigation, it becomes unavailable unt
 - It does **not** undo file or external side effects
 - It does **not** work when queued messages exist
 - It does **not** work when compaction is running
+- `/fuck typo` requires the current model to support tool calling and have usable credentials
 - `/fuckhard` only works immediately during or after a real user prompt; succeeding or navigating the tree makes it unavailable until another prompt is sent
 - `/fuckhard` is **destructive** and rewrites the current session file in place
 
@@ -77,7 +88,7 @@ After `/fuckhard` succeeds, or after tree navigation, it becomes unavailable unt
 - undo file changes (or recommending/working with a different extension)
 - /unfuck -> undo your /fuck (with the limitation that aborted agent runs can't be truly continued)
 - allow it to work with queued messages or compaction (may require upstream changes or patching pi)
-- some automatic prompt-fixing (like bash "the fuck")
+- more prompt repair helpers, e.g. `/fuck append ...`, `/fuck s/old/new/`, or `/fuck edit ...`
 
 ## License
 
