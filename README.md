@@ -52,11 +52,14 @@ What `/fuck` does:
 
 What `/fuckhard` does:
 
-1. Aborts the current agent run if one is active
-2. Finds the most recent real user message on the active branch
-3. Destructively removes that prompt and its descendant subtree from the current session file
-4. Reloads the same session
-5. Restores the prompt into the editor
+1. Only runs immediately during or after a real user prompt has been sent
+2. Aborts the current agent run if one is active
+3. Finds the most recent real user message on the active branch
+4. Destructively removes that prompt and its descendant subtree from the current session file
+5. Reloads the same session
+6. Restores the prompt into the editor
+
+After `/fuckhard` succeeds, or after tree navigation, it becomes unavailable until another real user prompt is sent. It is intended to only be used once to remove a clear mistake, not as general session history editing.
 
 ## Limitations
 
@@ -64,6 +67,7 @@ What `/fuckhard` does:
 - It does **not** undo file or external side effects
 - It does **not** work when queued messages exist
 - It does **not** work when compaction is running
+- `/fuckhard` only works immediately during or after a real user prompt; succeeding or navigating the tree makes it unavailable until another prompt is sent
 - `/fuckhard` is **destructive** and rewrites the current session file in place
 
 **IT DOES NOT UNDO FILE SYSTEM OR OTHER EXTERNAL SIDE EFFECTS**

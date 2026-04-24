@@ -87,9 +87,19 @@ function rewriteSessionInPlace(sessionFile: string, header: SessionHeader, entri
 
 export default function piFuck(pi: ExtensionAPI) {
 	let isCompacting = false;
+	let isFuckhardActive = false;
 
 	const clearCompactionState = () => {
 		isCompacting = false;
+	};
+
+	const clearFuckhardActivation = () => {
+		isFuckhardActive = false;
+	};
+
+	const resetSessionState = () => {
+		clearCompactionState();
+		clearFuckhardActivation();
 	};
 
 	const prepareCommand = async (commandName: "fuck" | "fuckhard", ctx: ExtensionCommandContext) => {
@@ -117,8 +127,14 @@ export default function piFuck(pi: ExtensionAPI) {
 		return true;
 	};
 
-	pi.on("session_start", clearCompactionState);
-	pi.on("session_shutdown", clearCompactionState);
+	pi.on("session_start", resetSessionState);
+	pi.on("input", clearFuckhardActivation);
+	pi.on("message_start", (event) => {
+		if (event.message.role === "user") {
+			isFuckhardActive = true;
+		}
+	});
+	pi.on("session_tree", clearFuckhardActivation);
 	pi.on("session_before_compact", ({ signal }) => {
 		isCompacting = true;
 		signal.addEventListener("abort", clearCompactionState, { once: true });
@@ -128,6 +144,8 @@ export default function piFuck(pi: ExtensionAPI) {
 	pi.registerCommand("fuck", {
 		description: "Abort the current run and recover the last user prompt into the editor",
 		handler: async (args, ctx) => {
+			clearFuckhardActivation();
+
 			if (args.trim()) {
 				ctx.ui.notify("Usage: /fuck", "warning");
 				return;
@@ -161,6 +179,14 @@ export default function piFuck(pi: ExtensionAPI) {
 				return;
 			}
 
+			if (!isFuckhardActive) {
+				ctx.ui.notify(
+					"Can't /fuckhard now. It only works immediately during or after a user prompt.",
+					"warning",
+				);
+				return;
+			}
+
 			if (!(await prepareCommand("fuckhard", ctx))) {
 				return;
 			}
@@ -178,6 +204,8 @@ export default function piFuck(pi: ExtensionAPI) {
 				ctx.ui.notify("Current session can't be rewritten safely.", "warning");
 				return;
 			}
+
+			clearFuckhardActivation();
 
 			const editorText = ctx.ui.getEditorText();
 			const restoredText = editorText.trim() ? editorText : extractUserMessageText(lastUserMessage);
