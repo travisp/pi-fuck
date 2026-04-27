@@ -12,12 +12,6 @@ _Inspired by the great [thefuck](https://github.com/nvbn/thefuck)._
 
 ## Install
 
-Install from npm:
-
-```bash
-pi install npm:pi-fuck
-```
-
 Install from GitHub:
 
 ```bash
