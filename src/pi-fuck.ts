@@ -1,16 +1,71 @@
 import { randomUUID } from "node:crypto";
-import { renameSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 import { complete, Type } from "@mariozechner/pi-ai";
-import type {
-	ExtensionAPI,
-	ExtensionCommandContext,
-	SessionEntry,
-	SessionHeader,
+import {
+	getAgentDir,
+	type ExtensionAPI,
+	type ExtensionCommandContext,
+	type SessionEntry,
+	type SessionHeader,
 } from "@mariozechner/pi-coding-agent";
 
 type UserMessageEntry = SessionEntry & { type: "message"; message: { role: "user" } };
+type FcukConfig = { words?: unknown };
+type ConfigWarning = { path: string; message: string };
+
+const DEFAULT_COMMAND_WORDS = ["fuck"];
+const CONFIG_FILE_NAME = "fcuk.json";
+const COMMAND_WORD_PATTERN = /^[A-Za-z0-9_-]+$/;
+
+function normalizeCommandWords(words: unknown): string[] {
+	if (!Array.isArray(words)) {
+		return [];
+	}
+
+	const normalizedWords = new Set<string>();
+	for (const word of words) {
+		if (typeof word !== "string") {
+			continue;
+		}
+
+		const trimmedWord = word.trim();
+		if (COMMAND_WORD_PATTERN.test(trimmedWord)) {
+			normalizedWords.add(trimmedWord);
+		}
+	}
+
+	return [...normalizedWords];
+}
+
+function loadConfiguredWords(): { words: string[]; warning?: ConfigWarning } {
+	const configPath = join(getAgentDir(), CONFIG_FILE_NAME);
+	if (!existsSync(configPath)) {
+		return { words: DEFAULT_COMMAND_WORDS };
+	}
+
+	try {
+		const config = JSON.parse(readFileSync(configPath, "utf-8")) as FcukConfig;
+		const words = normalizeCommandWords(config.words);
+		if (words.length > 0) {
+			return { words };
+		}
+
+		return {
+			words: DEFAULT_COMMAND_WORDS,
+			warning: { path: configPath, message: 'expected { "words": ["fuck"] }' },
+		};
+	} catch (error) {
+		return {
+			words: DEFAULT_COMMAND_WORDS,
+			warning: {
+				path: configPath,
+				message: error instanceof Error ? error.message : String(error),
+			},
+		};
+	}
+}
 
 function isUserMessageEntry(entry: SessionEntry): entry is UserMessageEntry {
 	return entry.type === "message" && entry.message.role === "user";
@@ -78,7 +133,7 @@ function serializeSession(header: SessionHeader, entries: SessionEntry[]): strin
 }
 
 function rewriteSessionInPlace(sessionFile: string, header: SessionHeader, entries: SessionEntry[]): void {
-	const tempFile = join(dirname(sessionFile), `.pi-fuck-${randomUUID()}.tmp`);
+	const tempFile = join(dirname(sessionFile), `.pi-fcuk-${randomUUID()}.tmp`);
 	writeFileSync(tempFile, serializeSession(header, entries));
 	renameSync(tempFile, sessionFile);
 }
@@ -169,6 +224,7 @@ function findClosestSlashCommand(commandName: string, commandNames: string[]): s
 }
 
 async function offerSlashCommandTypoFix(
+	commandName: string,
 	originalPrompt: string,
 	pi: ExtensionAPI,
 	ctx: ExtensionCommandContext,
@@ -199,9 +255,9 @@ async function offerSlashCommandTypoFix(
 
 	if (useSuggestion) {
 		ctx.ui.setEditorText(suggestion);
-		ctx.ui.notify(`fuck?: changed /${parsed.commandName} to /${closestCommand}`, "info");
+		ctx.ui.notify(`${commandName}: changed /${parsed.commandName} to /${closestCommand}`, "info");
 	} else {
-		ctx.ui.notify("fuck?: kept original prompt", "info");
+		ctx.ui.notify(`${commandName}: kept original prompt`, "info");
 	}
 
 	return true;
@@ -248,13 +304,13 @@ function buildTypoFixUserPrompt(originalPrompt: string): string {
 async function suggestTypoFix(originalPrompt: string, ctx: ExtensionCommandContext): Promise<string | undefined> {
 	const model = ctx.model;
 	if (!model) {
-		ctx.ui.notify("fuck?: no model available", "warning");
+		ctx.ui.notify("No model available for typo correction", "warning");
 		return undefined;
 	}
 
 	const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
 	if (!auth?.ok || !auth.apiKey) {
-		ctx.ui.notify(auth?.ok === false ? auth.error : "fuck?: no API key", "warning");
+		ctx.ui.notify(auth?.ok === false ? auth.error : "No API key for typo correction", "warning");
 		return undefined;
 	}
 
@@ -285,17 +341,22 @@ async function suggestTypoFix(originalPrompt: string, ctx: ExtensionCommandConte
 		}
 	}
 
-	ctx.ui.notify("fuck?: model did not return a typo correction", "warning");
+	ctx.ui.notify("Model did not return a typo correction", "warning");
 	return undefined;
 }
 
-async function offerTypoFix(originalPrompt: string, pi: ExtensionAPI, ctx: ExtensionCommandContext): Promise<void> {
-	if (await offerSlashCommandTypoFix(originalPrompt, pi, ctx)) {
+async function offerTypoFix(
+	commandName: string,
+	originalPrompt: string,
+	pi: ExtensionAPI,
+	ctx: ExtensionCommandContext,
+): Promise<void> {
+	if (await offerSlashCommandTypoFix(commandName, originalPrompt, pi, ctx)) {
 		return;
 	}
 
-	ctx.ui.setStatus("pi-fuck", "Checking prompt for typos...");
-	ctx.ui.setWidget("pi-fuck-typo", ["pi-fuck: checking restored prompt for typos..."]);
+	ctx.ui.setStatus("pi-fcuk", "Checking prompt for typos...");
+	ctx.ui.setWidget("pi-fcuk-typo", ["pi-fcuk: checking restored prompt for typos..."]);
 	try {
 		const suggestion = await suggestTypoFix(originalPrompt, ctx);
 		if (suggestion === undefined) {
@@ -303,7 +364,7 @@ async function offerTypoFix(originalPrompt: string, pi: ExtensionAPI, ctx: Exten
 		}
 
 		if (suggestion.trim() === originalPrompt.trim()) {
-			ctx.ui.notify("fuck?: no obvious typo fix found", "info");
+			ctx.ui.notify(`${commandName}: no obvious typo fix found`, "info");
 			return;
 		}
 
@@ -322,19 +383,21 @@ async function offerTypoFix(originalPrompt: string, pi: ExtensionAPI, ctx: Exten
 
 		if (useSuggestion) {
 			ctx.ui.setEditorText(suggestion);
-			ctx.ui.notify("fuck?: applied suggestion", "info");
+			ctx.ui.notify(`${commandName}: applied suggestion`, "info");
 		} else {
-			ctx.ui.notify("fuck?: kept original prompt", "info");
+			ctx.ui.notify(`${commandName}: kept original prompt`, "info");
 		}
 	} catch (error) {
-		ctx.ui.notify(`fuck? failed: ${error instanceof Error ? error.message : String(error)}`, "warning");
+		ctx.ui.notify(`${commandName} failed: ${error instanceof Error ? error.message : String(error)}`, "warning");
 	} finally {
-		ctx.ui.setStatus("pi-fuck", undefined);
-		ctx.ui.setWidget("pi-fuck-typo", undefined);
+		ctx.ui.setStatus("pi-fcuk", undefined);
+		ctx.ui.setWidget("pi-fcuk-typo", undefined);
 	}
 }
 
-export default function piFuck(pi: ExtensionAPI) {
+export default function piFcuk(pi: ExtensionAPI) {
+	const config = loadConfiguredWords();
+	const commandWords = config.words;
 	let isCompacting = false;
 	let isDestructiveCommandActive = false;
 
@@ -407,7 +470,115 @@ export default function piFuck(pi: ExtensionAPI) {
 		return originalPrompt;
 	};
 
-	pi.on("session_start", resetSessionState);
+	const destructivelyRecoverLastPrompt = async (commandName: string, ctx: ExtensionCommandContext) => {
+		if (!isDestructiveCommandActive) {
+			ctx.ui.notify(
+				`Can't /${commandName} now. It only works immediately during or after a user prompt.`,
+				"warning",
+			);
+			return;
+		}
+
+		if (!(await prepareCommand(commandName, ctx))) {
+			return;
+		}
+
+		const lastUserMessage = getLastUserMessage(ctx.sessionManager.getBranch());
+		if (!lastUserMessage) {
+			ctx.ui.notify("Nothing to remove on this branch.", "info");
+			return;
+		}
+
+		const sessionFile = ctx.sessionManager.getSessionFile();
+		const sessionHeader = ctx.sessionManager.getHeader();
+		if (!sessionFile || !sessionHeader) {
+			ctx.ui.notify("Current session can't be rewritten safely.", "warning");
+			return;
+		}
+
+		clearDestructiveCommandActivation();
+
+		// Restore the prompt into the editor first, then delete that prompt's subtree from disk.
+		if ((await ctx.navigateTree(lastUserMessage.id)).cancelled) {
+			ctx.ui.notify("Recovery cancelled.", "info");
+			return;
+		}
+
+		rewriteSessionInPlace(
+			sessionFile,
+			sessionHeader,
+			removeEntrySubtree(ctx.sessionManager.getEntries(), lastUserMessage.id),
+		);
+
+		await ctx.switchSession(sessionFile, {
+			withSession: async (replacementCtx) => {
+				// Pi reports "Resumed session" after withSession returns, so defer this
+				// notification until the session switch has fully finished.
+				setTimeout(() => {
+					replacementCtx.ui.notify(
+						`${commandName}: navigated back to last prompt and dropped messages from session`,
+						"info",
+					);
+				}, 0);
+			},
+		});
+	};
+
+	const registerCommandSet = (commandWord: string) => {
+		pi.registerCommand(commandWord, {
+			description: "Abort the current run and recover the last prompt",
+			handler: async (args, ctx) => {
+				clearDestructiveCommandActivation();
+				if (rejectUnexpectedArgs(commandWord, args, ctx)) {
+					return;
+				}
+
+				await recoverLastPrompt(commandWord, ctx);
+			},
+		});
+
+		const typoCommandName = `${commandWord}?`;
+		pi.registerCommand(typoCommandName, {
+			description: "Abort the current run, recover the last prompt, and suggest a typo fix",
+			handler: async (args, ctx) => {
+				clearDestructiveCommandActivation();
+				if (rejectUnexpectedArgs(typoCommandName, args, ctx)) {
+					return;
+				}
+
+				const originalPrompt = await recoverLastPrompt(typoCommandName, ctx);
+				if (originalPrompt !== undefined) {
+					await offerTypoFix(typoCommandName, originalPrompt, pi, ctx);
+				}
+			},
+		});
+
+		const destructiveCommandName = `${commandWord}!`;
+		pi.registerCommand(destructiveCommandName, {
+			description: "Destructively rewrite the current session to remove the last prompt subtree",
+			handler: async (args, ctx) => {
+				if (rejectUnexpectedArgs(destructiveCommandName, args, ctx)) {
+					return;
+				}
+
+				await destructivelyRecoverLastPrompt(destructiveCommandName, ctx);
+			},
+		});
+	};
+
+	pi.on("session_start", (_event, ctx) => {
+		resetSessionState();
+		if (config.warning) {
+			// /reload reports its own status after extensions restart, so defer this
+			// notification until the reload flow has finished updating the UI.
+			setTimeout(() => {
+				ctx.ui.notify(
+					`pi-fcuk: invalid config at ${config.warning.path}; using /${DEFAULT_COMMAND_WORDS[0]}.`,
+					"warning",
+				);
+			}, 0);
+		}
+	});
 	pi.on("input", clearDestructiveCommandActivation);
 	pi.on("message_start", (event) => {
 		if (event.message.role === "user") {
@@ -421,89 +592,7 @@ export default function piFuck(pi: ExtensionAPI) {
 	});
 	pi.on("session_compact", clearCompactionState);
 
-	pi.registerCommand("fuck", {
-		description: "Abort the current run and recover the last prompt",
-		handler: async (args, ctx) => {
-			clearDestructiveCommandActivation();
-			if (rejectUnexpectedArgs("fuck", args, ctx)) {
-				return;
-			}
-
-			await recoverLastPrompt("fuck", ctx);
-		},
-	});
-
-	pi.registerCommand("fuck?", {
-		description: "Abort the current run, recover the last prompt, and suggest a typo fix",
-		handler: async (args, ctx) => {
-			clearDestructiveCommandActivation();
-			if (rejectUnexpectedArgs("fuck?", args, ctx)) {
-				return;
-			}
-
-			const originalPrompt = await recoverLastPrompt("fuck?", ctx);
-			if (originalPrompt !== undefined) {
-				await offerTypoFix(originalPrompt, pi, ctx);
-			}
-		},
-	});
-
-	pi.registerCommand("fuck!", {
-		description: "Destructively rewrite the current session to remove the last prompt subtree",
-		handler: async (args, ctx) => {
-			if (rejectUnexpectedArgs("fuck!", args, ctx)) {
-				return;
-			}
-
-			if (!isDestructiveCommandActive) {
-				ctx.ui.notify(
-					"Can't /fuck! now. It only works immediately during or after a user prompt.",
-					"warning",
-				);
-				return;
-			}
-
-			if (!(await prepareCommand("fuck!", ctx))) {
-				return;
-			}
-
-			const lastUserMessage = getLastUserMessage(ctx.sessionManager.getBranch());
-			if (!lastUserMessage) {
-				ctx.ui.notify("Nothing to remove on this branch.", "info");
-				return;
-			}
-
-			const sessionFile = ctx.sessionManager.getSessionFile();
-			const sessionHeader = ctx.sessionManager.getHeader();
-			if (!sessionFile || !sessionHeader) {
-				ctx.ui.notify("Current session can't be rewritten safely.", "warning");
-				return;
-			}
-
-			clearDestructiveCommandActivation();
-
-			// Match /fuck's recovery path first so Pi restores the prompt into the editor.
-			// After that, rewrite the session file to delete the recovered prompt's subtree.
-			if ((await ctx.navigateTree(lastUserMessage.id)).cancelled) {
-				ctx.ui.notify("Recovery cancelled.", "info");
-				return;
-			}
-
-			const rewrittenEntries = removeEntrySubtree(ctx.sessionManager.getEntries(), lastUserMessage.id);
-
-			rewriteSessionInPlace(sessionFile, sessionHeader, rewrittenEntries);
-			await ctx.switchSession(sessionFile, {
-				withSession: async (replacementCtx) => {
-					// Pi reports "Resumed session" after withSession returns, so defer this
-					// notification until the session switch has fully finished.
-					setTimeout(() => {
-						replacementCtx.ui.notify(
-							"fuck!: navigated back to last prompt and dropped messages from session",
-							"info",
-						);
-					}, 0);
-				},
-			});
-		},
-	});
+	for (const commandWord of commandWords) {
+		registerCommandSet(commandWord);
+	}
 }
