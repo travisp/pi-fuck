@@ -1,6 +1,6 @@
 {
   "name": "pi-wtf",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Recover the last user prompt in pi after you realize you messed up.",
   "type": "module",
   "author": "Travis Pew",
@@ -14,12 +14,12 @@
   "bugs": {
     "url": "https://github.com/travisp/pi-wtf/issues"
   },
-  "files": ["src", "README.md", "LICENSE"],
+  "files": ["index.ts", "src", "README.md", "LICENSE"],
   "publishConfig": {
     "access": "public"
   },
   "pi": {
-    "extensions": ["./src/pi-wtf.ts"]
+    "extensions": ["./index.ts"]
   },
   "peerDependencies": {
     "@mariozechner/pi-ai": "*",
