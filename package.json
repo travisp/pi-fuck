@@ -1,5 +1,5 @@
 {
-  "name": "pi-fcuk",
+  "name": "pi-wtf",
   "version": "0.1.0",
   "description": "Recover the last user prompt in pi after you realize you messed up.",
   "type": "module",
@@ -8,18 +8,18 @@
   "keywords": ["pi-package", "pi"],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/travisp/pi-fuck.git"
+    "url": "git+https://github.com/travisp/pi-wtf.git"
   },
-  "homepage": "https://github.com/travisp/pi-fuck#readme",
+  "homepage": "https://github.com/travisp/pi-wtf#readme",
   "bugs": {
-    "url": "https://github.com/travisp/pi-fuck/issues"
+    "url": "https://github.com/travisp/pi-wtf/issues"
   },
   "files": ["src", "README.md", "LICENSE"],
   "publishConfig": {
     "access": "public"
   },
   "pi": {
-    "extensions": ["./src/pi-fuck.ts"]
+    "extensions": ["./src/pi-wtf.ts"]
   },
   "dependencies": {
     "@mariozechner/pi-ai": "*"

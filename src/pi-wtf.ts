@@ -16,7 +16,7 @@ type FcukConfig = { words?: unknown };
 type ConfigWarning = { path: string; message: string };
 
 const DEFAULT_COMMAND_WORDS = ["fuck"];
-const CONFIG_FILE_NAME = "fcuk.json";
+const CONFIG_FILE_NAME = "wtf.json";
 const COMMAND_WORD_PATTERN = /^[A-Za-z0-9_-]+$/;
 
 function normalizeCommandWords(words: unknown): string[] {
@@ -133,7 +133,7 @@ function serializeSession(header: SessionHeader, entries: SessionEntry[]): strin
 }
 
 function rewriteSessionInPlace(sessionFile: string, header: SessionHeader, entries: SessionEntry[]): void {
-	const tempFile = join(dirname(sessionFile), `.pi-fcuk-${randomUUID()}.tmp`);
+	const tempFile = join(dirname(sessionFile), `.pi-wtf-${randomUUID()}.tmp`);
 	writeFileSync(tempFile, serializeSession(header, entries));
 	renameSync(tempFile, sessionFile);
 }
@@ -355,8 +355,8 @@ async function offerTypoFix(
 		return;
 	}
 
-	ctx.ui.setStatus("pi-fcuk", "Checking prompt for typos...");
-	ctx.ui.setWidget("pi-fcuk-typo", ["pi-fcuk: checking restored prompt for typos..."]);
+	ctx.ui.setStatus("pi-wtf", "Checking prompt for typos...");
+	ctx.ui.setWidget("pi-wtf-typo", ["pi-wtf: checking restored prompt for typos..."]);
 	try {
 		const suggestion = await suggestTypoFix(originalPrompt, ctx);
 		if (suggestion === undefined) {
@@ -390,12 +390,12 @@ async function offerTypoFix(
 	} catch (error) {
 		ctx.ui.notify(`${commandName} failed: ${error instanceof Error ? error.message : String(error)}`, "warning");
 	} finally {
-		ctx.ui.setStatus("pi-fcuk", undefined);
-		ctx.ui.setWidget("pi-fcuk-typo", undefined);
+		ctx.ui.setStatus("pi-wtf", undefined);
+		ctx.ui.setWidget("pi-wtf-typo", undefined);
 	}
 }
 
-export default function piFcuk(pi: ExtensionAPI) {
+export default function piWtf(pi: ExtensionAPI) {
 	const config = loadConfiguredWords();
 	const commandWords = config.words;
 	let isCompacting = false;
@@ -573,7 +573,7 @@ export default function piFcuk(pi: ExtensionAPI) {
 			// notification until the reload flow has finished updating the UI.
 			setTimeout(() => {
 				ctx.ui.notify(
-					`pi-fcuk: invalid config at ${config.warning.path}; using /${DEFAULT_COMMAND_WORDS[0]}.`,
+					`pi-wtf: invalid config at ${config.warning.path}; using /${DEFAULT_COMMAND_WORDS[0]}.`,
 					"warning",
 				);
 			}, 0);

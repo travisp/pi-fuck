@@ -1,4 +1,4 @@
-# pi-fcuk
+# pi-wtf
 
 A small [pi](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent) extension for the moment you realize you messed up.
 
@@ -15,19 +15,19 @@ _Inspired by the great [thefuck](https://github.com/nvbn/thefuck)._
 Install from npm:
 
 ```bash
-pi install npm:pi-fcuk
+pi install npm:pi-wtf
 ```
 
 Install from GitHub:
 
 ```bash
-pi install git:github.com/travisp/pi-fcuk
+pi install git:github.com/travisp/pi-wtf
 ```
 
 Quick one-off test:
 
 ```bash
-pi -e git:github.com/travisp/pi-fcuk
+pi -e git:github.com/travisp/pi-wtf
 ```
 
 ## Usage
@@ -69,7 +69,7 @@ It can also be used as a general /rewind style tool when the agent is doing some
 
 ## Configuration
 
-You can replace the command word globally with `~/.pi/agent/fcuk.json`:
+You can replace the command word globally with `~/.pi/agent/wtf.json`:
 
 ```json
 {
@@ -87,7 +87,7 @@ After restarting or running `/reload`, the registered commands become:
 
 `words` replaces the defaults; it does not add aliases. Each word must contain only letters, numbers, underscores, or hyphens.
 
-If the config file is missing, invalid, or contains no valid words, pi-fcuk falls back to `fuck`.
+If the config file is missing, invalid, or contains no valid words, pi-wtf falls back to `fuck`.
 
 Recommended alternatives if you work in a joyless environment that doesn't understand humor: oops, doh, ffs.
 
